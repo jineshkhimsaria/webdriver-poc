@@ -1,0 +1,52 @@
+# To execute this docker-compose yml file use `docker-compose -f <file_name> up`
+# Add the `-d` flag at the end for detached execution
+version: "3"
+services:
+  selenium-hub:
+    image: selenium/hub
+    ports:
+      - "4444:4444"
+    volumes:
+      - ${PWD}:/dev/shm  
+    environment:
+      GRID_BROWSER_TIMEOUT: 30000
+      GRID_TIMEOUT: 30000
+      GRID_DEBUG: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://selenium-hub:4444/grid/console"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  chrome:
+    image: selenium/node-chrome-debug
+    depends_on:
+      - selenium-hub
+    links:
+      - selenium-hub  
+    environment:
+      - HUB_HOST=selenium-hub
+      - HUB_PORT=4444  
+  firefox:
+    image: selenium/node-firefox-debug
+    depends_on:
+      - selenium-hub
+    links:
+      - selenium-hub
+    environment:
+      - HUB_HOST=selenium-hub
+      - HUB_PORT=4444
+  webdriverio:
+    command: bash -c "/bin/bash /airbnb-wdio-selenium-grid-poc/grid_status.sh && /usr/bin/npm run crossbrowser"
+    image: wdio_ubuntu:9
+    volumes:
+      - ${PWD}:/dev/shm
+    restart: on-failure  
+    depends_on:
+      - selenium-hub    
+      - chrome
+      - firefox
+    links:
+      - selenium-hub  
+    environment:
+      - HUB_HOST=selenium-hub
+      - HUB_PORT=4444
